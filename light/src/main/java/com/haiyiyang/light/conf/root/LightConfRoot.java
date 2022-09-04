@@ -2,24 +2,46 @@ package com.haiyiyang.light.conf.root;
 
 import java.util.List;
 
+import com.haiyiyang.light.__.U;
 import com.haiyiyang.light.conf.attr.AppAddress;
-import com.haiyiyang.light.conf.attr.AppRegistry;
+import com.haiyiyang.light.conf.attr.NettyConf;
+import com.haiyiyang.light.conf.attr.ThreadPool;
+import com.typesafe.config.Optional;
 
-public class LightConfRoot implements java.io.Serializable {
+public class LightConfRoot {
 
-	private static final long serialVersionUID = 1L;
-
+	@Optional
 	private String domainPackages;
 
-	private String registry;
+	@Optional
+	private String registry = U.S12700012181;
 
+	@Optional
+	private int timeout = U.i7;
+
+	@Optional
+	private String ipSegments;
+
+	@Optional
 	private boolean disableGrouping;
 
-	private List<AppRegistry> appRegistry;
+	@Optional
+	private int serializer = U.i16;
 
+	@Optional
 	private List<AppAddress> appAddress;
 
-	private int timeout = 5;
+	@Optional
+	private ThreadPool serverThreadPool;
+
+	@Optional
+	private ThreadPool clientThreadPool;
+
+	@Optional
+	private NettyConf serverNettyConf;
+
+	@Optional
+	private NettyConf clientNettyConf;
 
 	public String getDomainPackages() {
 		return domainPackages;
@@ -37,6 +59,22 @@ public class LightConfRoot implements java.io.Serializable {
 		this.registry = registry;
 	}
 
+	public int getTimeout() {
+		return timeout;
+	}
+
+	public void setTimeout(int timeout) {
+		this.timeout = timeout;
+	}
+
+	public String getIpSegments() {
+		return ipSegments;
+	}
+
+	public void setIpSegments(String ipSegments) {
+		this.ipSegments = ipSegments;
+	}
+
 	public boolean isDisableGrouping() {
 		return disableGrouping;
 	}
@@ -45,12 +83,12 @@ public class LightConfRoot implements java.io.Serializable {
 		this.disableGrouping = disableGrouping;
 	}
 
-	public List<AppRegistry> getAppRegistry() {
-		return appRegistry;
+	public int getSerializer() {
+		return serializer;
 	}
 
-	public void setAppRegistry(List<AppRegistry> appRegistry) {
-		this.appRegistry = appRegistry;
+	public void setSerializer(int serializer) {
+		this.serializer = serializer;
 	}
 
 	public List<AppAddress> getAppAddress() {
@@ -61,12 +99,36 @@ public class LightConfRoot implements java.io.Serializable {
 		this.appAddress = appAddress;
 	}
 
-	public int getTimeout() {
-		return timeout;
+	public ThreadPool getServerThreadPool() {
+		return serverThreadPool;
 	}
 
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
+	public void setServerThreadPool(ThreadPool serverThreadPool) {
+		this.serverThreadPool = serverThreadPool;
+	}
+
+	public ThreadPool getClientThreadPool() {
+		return clientThreadPool;
+	}
+
+	public void setClientThreadPool(ThreadPool clientThreadPool) {
+		this.clientThreadPool = clientThreadPool;
+	}
+
+	public NettyConf getServerNettyConf() {
+		return serverNettyConf;
+	}
+
+	public void setServerNettyConf(NettyConf serverNettyConf) {
+		this.serverNettyConf = serverNettyConf;
+	}
+
+	public NettyConf getClientNettyConf() {
+		return clientNettyConf;
+	}
+
+	public void setClientNettyConf(NettyConf clientNettyConf) {
+		this.clientNettyConf = clientNettyConf;
 	}
 
 }

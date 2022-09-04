@@ -1,65 +1,36 @@
 package com.haiyiyang.light.app;
 
-import org.springframework.context.support.AbstractApplicationContext;
-
 public class LightAppParam {
-	private String appName;
+
+	private String callerName;
 	private String[] basePackages;
 	private String[] componantClasses;
-	AbstractApplicationContext ctx;
+	private boolean serviceProvider = true;
 
-	public LightAppParam() {
+	private LightAppParam(String callerName, boolean serviceProvider) {
+		this.callerName = callerName;
+		this.serviceProvider = serviceProvider;
 	}
 
-	public LightAppParam(AbstractApplicationContext ctx) {
-		this.ctx = ctx;
-	}
-
-	public LightAppParam(String[] basePackages, String[] componantClasses) {
+	private LightAppParam(String callerName, String[] basePackages, String[] componantClasses) {
+		this.callerName = callerName;
 		this.basePackages = basePackages;
 		this.componantClasses = componantClasses;
 	}
 
-	public LightAppParam(AbstractApplicationContext ctx, String[] basePackages, String[] componantClasses) {
-		this.ctx = ctx;
-		this.basePackages = basePackages;
-		this.componantClasses = componantClasses;
+	public static LightAppParam buildClientAppParam() {
+		String callerName = Thread.currentThread().getStackTrace()[3].getClassName();
+		return new LightAppParam(callerName, false);
 	}
 
-	public LightAppParam(String appName, AbstractApplicationContext ctx, String[] basePackages,
-			String[] componantClasses) {
-		this.appName = appName;
-		this.ctx = ctx;
-		this.basePackages = basePackages;
-		this.componantClasses = componantClasses;
+	public static LightAppParam buildAppParam(String[] basePackages) {
+		String callerName = Thread.currentThread().getStackTrace()[2].getClassName();
+		return new LightAppParam(callerName, basePackages, null);
 	}
 
-	public String getAppName() {
-		return appName;
-	}
-
-	public void setAppName(String appName) {
-		this.appName = appName;
-	}
-
-	public String[] getBasePackages() {
-		return basePackages;
-	}
-
-	public void setBasePackages(String[] basePackages) {
-		this.basePackages = basePackages;
-	}
-
-	public AbstractApplicationContext getCtx() {
-		return ctx;
-	}
-
-	public void setCtx(AbstractApplicationContext ctx) {
-		this.ctx = ctx;
-	}
-
-	public void setComponantClasses(String[] componantClasses) {
-		this.componantClasses = componantClasses;
+	public static LightAppParam buildAppParam(String[] basePackages, String[] componantClasses) {
+		String callerName = Thread.currentThread().getStackTrace()[2].getClassName();
+		return new LightAppParam(callerName, basePackages, componantClasses);
 	}
 
 	public Class<?>[] getComponantClasses() throws ClassNotFoundException {
@@ -71,6 +42,18 @@ public class LightAppParam {
 			classes[i] = Class.forName(componantClasses[i]);
 		}
 		return classes;
+	}
+
+	public String getCallerName() {
+		return callerName;
+	}
+
+	public String[] getBasePackages() {
+		return basePackages;
+	}
+
+	public boolean isServiceProvider() {
+		return serviceProvider;
 	}
 
 }

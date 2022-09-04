@@ -3,35 +3,36 @@ package com.haiyiyang.light.conf;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.tinylog.Logger;
 
 import com.google.common.collect.Lists;
+import com.haiyiyang.light.__.E;
+import com.haiyiyang.light.__.U;
+import com.haiyiyang.light.conf.attr.AppAddress;
+import com.haiyiyang.light.conf.attr.NettyConf;
+import com.haiyiyang.light.conf.attr.ThreadPool;
 import com.haiyiyang.light.conf.root.LightConfRoot;
-import com.haiyiyang.light.constant.LightConstants;
-import com.haiyiyang.light.exception.LightException;
-import com.haiyiyang.light.resource.subscription.ResourceSubscriber;
-import com.haiyiyang.light.resource.subscription.ResourceSubscription;
-import com.haiyiyang.light.utils.LightUtil;
-import com.typesafe.config.Config;
+import com.haiyiyang.light.conf.subscribe.ConfSubscriber;
+import com.haiyiyang.light.conf.subscribe.ConfSubscription;
 import com.typesafe.config.ConfigBeanFactory;
 import com.typesafe.config.ConfigFactory;
 
-public class LightConf implements ResourceSubscriber {
+public class LightConf implements ConfSubscriber {
 
-	private static final Logger LR = LoggerFactory.getLogger(LightConf.class);
-
-	static final String CONF_SERVER = "lightConfServer:2181";
-	private static final String LIGHT_CONF_URL = "/light/light.conf";
-	private static final String LIGHT_CONF_LOCAL_URL = LightUtil.getLocalPath(LIGHT_CONF_URL);
-
-	private static LightConfRoot LIGHT_CONF_ROOT;
 	private static volatile LightConf LIGHT_CONF;
 
-	private List<String> domainPackages;
+	static final String lightConfServer = "lightConfServer:2181";
 
-	public final static byte timeout = 5;
+	private static final String LIGHT_CONF_URL = "/light/light.conf";
+	private static final String LIGHT_CONF_LOCAL_URL = U.getLocalPath(LIGHT_CONF_URL);
+
+	private static final Map<String, String> appAddressMap = new ConcurrentHashMap<String, String>();
+
+	private static List<String> domainPackages;
+	private static LightConfRoot lightConfRoot;
 
 	private LightConf() {
 		initialize();
@@ -50,46 +51,63 @@ public class LightConf implements ResourceSubscriber {
 	}
 
 	public static List<String> getDomainPackages() {
-		return singleton().domainPackages;
+		return domainPackages;
 	}
 
-	public void setDomainPackages() {
-		if (LIGHT_CONF_ROOT.getDomainPackages() == null || LIGHT_CONF_ROOT.getDomainPackages().isEmpty()) {
-			this.domainPackages = Collections.emptyList();
+	public void initializeDomainPackages() {
+		if (lightConfRoot.getDomainPackages() == null || lightConfRoot.getDomainPackages().isEmpty()) {
+			domainPackages = Collections.emptyList();
 		} else {
-			this.domainPackages = Lists.newArrayList(LIGHT_CONF_ROOT.getDomainPackages().split(LightConstants.COMMA));
-			this.domainPackages.sort((a, b) -> (a.length() > b.length()) ? -1 : 1);
+			domainPackages = Lists.newArrayList(lightConfRoot.getDomainPackages().split(U.COMMA));
+			domainPackages.sort((a, b) -> (a.length() > b.length()) ? -1 : 1);
 		}
 	}
 
 	private void initialize() {
-		if (LightUtil.useLocalConf()) {
-			Config config = ConfigFactory.parseFile(new File(LIGHT_CONF_LOCAL_URL));
-			LIGHT_CONF_ROOT = ConfigBeanFactory.create(config, LightConfRoot.class);
-			setDomainPackages();
+		if (U.useLocalConf()) {
+			setLightConfRoot(ConfigBeanFactory.create(ConfigFactory.parseFile(new File(LIGHT_CONF_LOCAL_URL)),
+					LightConfRoot.class));
 		} else {
 			doSubscribeLightConf();
 		}
 	}
 
 	private void doSubscribeLightConf() {
-		byte[] data = ResourceSubscription.getSubscription(this).getData(LIGHT_CONF_URL);
-		if (data == null || data.length == 0) {
-			LR.error("The file [{}] does not exists, or is empty.", LIGHT_CONF_URL);
-			throw new LightException(LightException.FILE_NOT_FOUND_OR_EMPTY);
+		byte[] data = null;
+		try {
+			data = ConfSubscription.getSubscription(this).getData(LIGHT_CONF_URL);
+		} catch (Exception e) {
+			Logger.error(e);
 		}
-		LIGHT_CONF_ROOT = ConfigBeanFactory
-				.create(ConfigFactory.parseString(new String(data, LightConstants.CHARSET_UTF8)), LightConfRoot.class);
-		setDomainPackages();
+		if (data == null || data.length == 0) {
+			throw new E(U.ZK_NO_DATA + LIGHT_CONF_URL);
+		}
+		setLightConfRoot(ConfigBeanFactory.create(ConfigFactory.parseString(new String(data, U.utf8Charset)),
+				LightConfRoot.class));
+
 	}
 
-	public static boolean isDisableGrouping() {
-		return LIGHT_CONF_ROOT.isDisableGrouping();
+	private void setLightConfRoot(LightConfRoot lightConfRoot) {
+		LightConf.lightConfRoot = lightConfRoot;
+		initializeDomainPackages();
+		initializeAppAddress();
+	}
+
+	private void initializeAppAddress() {
+		appAddressMap.clear();
+		List<AppAddress> appAddressList = lightConfRoot.getAppAddress();
+		if (appAddressList != null && !appAddressList.isEmpty()) {
+			for (AppAddress appAddress : appAddressList) {
+				if (appAddress != null) {
+					appAddressMap.put(appAddress.getAppName(), appAddress.getAddress());
+				}
+			}
+		}
 	}
 
 	@Override
 	public String getRegistry() {
-		return CONF_SERVER;
+		return lightConfServer;
 	}
 
 	@Override
@@ -100,41 +118,46 @@ public class LightConf implements ResourceSubscriber {
 	@Override
 	public void subscribe() {
 		doSubscribeLightConf();
-		LR.info("Reloaded file [{}].", getPath());
+		Logger.info("Reloaded file {}.", getPath());
 	}
 
-	public static List<String> getIpSegments() {
-		// TODO Auto-generated method stub
-		return null;
+	public List<String> getIpSegments() {
+		if (lightConfRoot.getIpSegments() == null) {
+			return Collections.emptyList();
+		}
+		return Lists.newArrayList(lightConfRoot.getIpSegments().split(U.COMMA));
 	}
 
-	public static String getServiceRegistry() {
-		// TODO Auto-generated method stub
-		return null;
+	public static boolean isDisableGrouping() {
+		return lightConfRoot.isDisableGrouping();
 	}
 
-	public static String getServiceRegistry(String appName) {
-		// TODO Auto-generated method stub
-		return null;
+	public NettyConf getServerNettyConf() {
+		return lightConfRoot.getServerNettyConf();
 	}
 
-	public static String getAppPort(String path) {
-		// TODO Auto-generated method stub
-		return null;
+	public NettyConf getClientNettyConf() {
+		return lightConfRoot.getClientNettyConf();
 	}
 
-	public static String getSerializerMode() {
-		// TODO Auto-generated method stub
-		return null;
+	public ThreadPool getServerThreadPool() {
+		return lightConfRoot.getServerThreadPool();
 	}
 
-	public static byte getServerLoadWeight(String serviceName, String localIp) {
-		// TODO Auto-generated method stub
-		return 0;
+	public ThreadPool getClientThreadPool() {
+		return lightConfRoot.getClientThreadPool();
 	}
 
-	public static void main(String[] args) {
-		System.setProperty("useLocalConf", "1");
-		LightConf.singleton();
+	public static String getAppRegistry() {
+		return lightConfRoot.getRegistry();
 	}
+
+	public static byte getSerializer() {
+		return (byte) lightConfRoot.getSerializer();
+	}
+
+	public static String getAppAddress(String appName) {
+		return appAddressMap.get(appName);
+	}
+
 }

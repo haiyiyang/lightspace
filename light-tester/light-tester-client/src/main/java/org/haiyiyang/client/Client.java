@@ -1,44 +1,34 @@
 package org.haiyiyang.client;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
 import org.haiyiyang.server.UserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.haiyiyang.server.dto.UserDto;
+import org.tinylog.Logger;
 
-import com.haiyiyang.light.constant.LightConstants;
-import com.haiyiyang.light.rpc.LightRpcContext;
-import com.haiyiyang.light.service.proxy.LightServiceFactory;
+import com.haiyiyang.light.service.LightServiceProxy;
 
 public class Client {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
-
 	public static void main(String[] args) {
-		System.setProperty("useLocalProps", LightConstants.STR1);
-		UserService userService = LightServiceFactory.getService(UserService.class);
-		String helloResult = userService.hello("Agent");
-		LOGGER.info("helloResult >>> " + helloResult);
 
-		final UserService asyncUserService = LightServiceFactory.getAsyncService(UserService.class);
-		Future<String> welcomeFuture = LightRpcContext.getContext().asyncCall(asyncUserService, new Callable<String>() {
-			public String call() throws Exception {
-				return asyncUserService.welcome("San", "Zhang");
-			}
-		});
+		System.setProperty("useLocalConf", "1");
+		UserService userService = LightServiceProxy.getService(UserService.class);
+		String helloResult = userService.hello("Agent");
+		Logger.info("helloResult >>> " + helloResult);
+
 		String welcomeResult = userService.welcome("Jack", "Ma");
-		LOGGER.info("welcomeResult >>> " + welcomeResult);
-		try {
-			String asyncWelcomeResult = welcomeFuture.get();
-			LOGGER.info("asyncWelcomeResult >>> " + asyncWelcomeResult);
-		} catch (InterruptedException e) {
-			LOGGER.error("Calling async welcome failed >>> " + e.getMessage());
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			LOGGER.error("Calling async welcome failed >>> " + e.getMessage());
-			e.printStackTrace();
+		Logger.info("welcomeResult >>> " + welcomeResult);
+		long start = System.currentTimeMillis();
+		for (int i = 0; i < 2000; i++) {
+			UserDto dto = new UserDto();
+			dto.setAge((byte) 1);
+			dto.setLastName("Liu");
+			dto.setFirstName("Dehua");
+			userService.saveUser(dto);
+//			userService.findUserListByGender(false);
 		}
+		long end = System.currentTimeMillis();
+		System.out.println("start:" + start);
+		System.out.println("end:" + end);
+		System.out.println("end - start" + (end - start));
 	}
 }

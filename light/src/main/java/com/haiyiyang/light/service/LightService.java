@@ -1,219 +1,241 @@
 package com.haiyiyang.light.service;
 
-import java.util.ArrayList;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.curator.framework.recipes.cache.CuratorCacheListener;
+import org.tinylog.Logger;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.haiyiyang.light.__.E;
+import com.haiyiyang.light.__.U;
 import com.haiyiyang.light.app.LightApp;
 import com.haiyiyang.light.conf.LightConf;
-import com.haiyiyang.light.constant.LightConstants;
-import com.haiyiyang.light.exception.LightException;
-import com.haiyiyang.light.resource.publish.ResourcePublication;
-import com.haiyiyang.light.resource.publish.ResourcePublisher;
-import com.haiyiyang.light.resource.subscription.ResourceSubscriber;
-import com.haiyiyang.light.resource.subscription.ResourceSubscription;
-import com.haiyiyang.light.rpc.invocation.InvocationFactor;
-import com.haiyiyang.light.rpc.invocation.LightInvocationHandler;
-import com.haiyiyang.light.rpc.server.LightRpcServer;
-import com.haiyiyang.light.rpc.server.task.handler.RequestHandler;
-import com.haiyiyang.light.service.entry.ServiceEntry;
+import com.haiyiyang.light.invocation.MethodHandler;
+import com.haiyiyang.light.invocation.client.NettyChannel;
+import com.haiyiyang.light.invocation.server.NodeEntry;
+import com.haiyiyang.light.invocation.server.NodeSelector;
+import com.haiyiyang.light.registry.RegistryClient;
+import com.haiyiyang.light.service.annotation.LightRemoteMethod;
 
-public class LightService implements ResourcePublisher, ResourceSubscriber {
+public final class LightService {
 
-	private static final Logger LR = LoggerFactory.getLogger(LightService.class);
+	private static final String LIGHT_SERVICE_PATH = "/light/services/";
 
-	private static final String LIGHT_SERVICE_SLASH_URL = "/light/service/";
+	private static final Map<String, Object> beanMap = new HashMap<>(8);
+	private static final Map<String, String> servicePathMap = new HashMap<>(8);
 
-	private static final Map<String, Object> LOCAL_SERVICE = new HashMap<>(8);
-	private static final Map<String, LightService> PUBLISHED_SERVICES = new ConcurrentHashMap<>(8);
-	private static final Map<String, LightService> SUBSCRIBED_SERVICES = new ConcurrentHashMap<>();
+	private static final Set<String> psnSet = new HashSet<>(8);
+	private static final Map<String, CopyOnWriteArraySet<NodeEntry>> ssnMap = new ConcurrentHashMap<>();
 
-	private String path;
-	private String registry;
-	private List<ServiceEntry> data;
+	private static final Table<String, Byte, Method> serviceMethodTable = HashBasedTable.create(8, 32);
 
-	private LightService(String registry, String path) {
-		this.path = path;
-		this.registry = registry;
-	}
+	private static volatile String serviceNode;
+	private static volatile RegistryClient registryClient;
 
-	private LightService(String registry, String path, ServiceEntry serviceEntries) {
-		this.path = path;
-		this.registry = registry;
-		this.data = Lists.newArrayList(serviceEntries);
-	}
-
-	public static Object getServiceProxy(InvocationFactor factor) {
-		String className = factor.getClazz().getName();
-		Object service = LOCAL_SERVICE.get(className);
-		if (service != null) {
-			return service;
+	private synchronized static void initRegistryClient() {
+		if (registryClient == null) {
+			serviceNode = LightApp.getServiceNode();
+			registryClient = new RegistryClient(LightConf.getAppRegistry());
 		}
-		return LightInvocationHandler.getProxyService(factor);
+	}
+
+	public static Object getServiceProxy(Class<?> clazz) {
+		if (beanMap.containsKey(clazz.getName())) {
+			return beanMap.get(clazz.getName());
+		}
+		return MethodHandler.getProxyService(clazz);
 	}
 
 	public static Object getLocalBean(String serviceName) {
-		return LOCAL_SERVICE.get(serviceName);
-	}
-
-	public static String resolveServicePath(Object object) {
-		if (object == null)
-			return null;
-		return resolveServicePath(getInterfaceName(object));
+		return beanMap.get(serviceName);
 	}
 
 	public static String resolveServicePath(String serviceName) {
+		if (servicePathMap.containsKey(serviceName)) {
+			return servicePathMap.get(serviceName);
+		}
 		List<String> domainPackageList = LightConf.getDomainPackages();
-		if (!domainPackageList.isEmpty()) {
-			for (String domainPackage : domainPackageList) {
-				if (serviceName.indexOf(domainPackage) == 0) {
-					int index = serviceName.indexOf(LightConstants.DOT, domainPackage.length() + 1);
-					return serviceName.substring(domainPackage.length() + 1,
-							index == -1 ? serviceName.length() : index);
-				}
+		if (domainPackageList == null || domainPackageList.isEmpty()) {
+			servicePathMap.put(serviceName, serviceName);
+			return serviceName;
+		}
+		for (String domainPackage : domainPackageList) {
+			if (serviceName.indexOf(domainPackage) == 0) {
+				int index = serviceName.indexOf(U.DOT, domainPackage.length() + 1);
+				servicePathMap.put(serviceName,
+						serviceName.substring(domainPackage.length() + 1, index == -1 ? serviceName.length() : index));
+				return servicePathMap.get(serviceName);
 			}
 		}
+		servicePathMap.put(serviceName, serviceName);
 		return serviceName;
 	}
 
-	public static void doPublishLightService() {
-		if (!PUBLISHED_SERVICES.isEmpty()) {
-			Entry<String, LightService> entry;
-			for (Iterator<Entry<String, LightService>> ite = PUBLISHED_SERVICES.entrySet().iterator(); ite.hasNext();) {
-				entry = ite.next();
-				ResourcePublication.getPublish(entry.getValue()).publishService(entry.getValue().getPath(),
-						entry.getValue().getPublishedData());
-			}
+	private static String buildNodePath(String serviceName) {
+		return U.bs(U.i127, LIGHT_SERVICE_PATH, serviceName, U.SLASH, serviceNode);
+	}
+
+	public static void publishLightService(String serviceNode, Collection<Object> objects) {
+		if (objects == null || objects.isEmpty()) {
+			return;
 		}
-		LR.info("Published Light services.");
+		if (registryClient == null) {
+			initRegistryClient();
+		}
+		Set<String> servicePathSet = new HashSet<>(objects.size());
+		for (Object object : objects) {
+			Class<?> interfaceClass = getInterfaceName(object);
+			String className = interfaceClass.getName();
+			String simpleClassName = interfaceClass.getSimpleName();
+			beanMap.put(className, object);
+			beanMap.put(simpleClassName, object);
+			buildMethodCache(interfaceClass, object);
+			servicePathSet.add(resolveServicePath(className));
+		}
+		for (String serviceName : servicePathSet) {
+			psnSet.add(buildNodePath(serviceName));
+		}
+		doPublishLightService();
+	}
+
+	public static void doPublishLightService() {
+		try {
+			for (String serviceNode : psnSet) {
+				registryClient.createPath(serviceNode, null);
+			}
+			Logger.info("Published Light services.");
+		} catch (Exception e) {
+			Logger.error(e);
+		}
 	}
 
 	public static void doUnpublishLightService() {
-		if (!PUBLISHED_SERVICES.isEmpty()) {
-			Entry<String, LightService> entry;
-			for (Iterator<Entry<String, LightService>> ite = PUBLISHED_SERVICES.entrySet().iterator(); ite.hasNext();) {
-				entry = ite.next();
-				ResourcePublication.getPublish(entry.getValue()).unpublishService(entry.getValue().getPath());
+		try {
+			for (String serviceNode : psnSet) {
+				registryClient.deletePath(serviceNode);
+			}
+			Logger.info("Unpublished Light services.");
+		} catch (Exception e) {
+			Logger.error(e);
+		}
+	}
+
+	public static CopyOnWriteArraySet<NodeEntry> subscribeLightService(String serviceName) {
+		String servicePath = resolveServicePath(serviceName);
+		if (ssnMap.containsKey(servicePath)) {
+			return ssnMap.get(servicePath);
+		}
+		String serviceFullPath = U.bs(U.i127, LIGHT_SERVICE_PATH, servicePath);
+		try {
+			if (registryClient == null) {
+				initRegistryClient();
+			}
+			registryClient.watchPathChildrenNode(serviceFullPath, newListener());
+			ssnMap.put(servicePath, getNodeEntrySet(serviceFullPath));
+		} catch (Exception e) {
+			Logger.error(e);
+		}
+		return ssnMap.get(servicePath);
+	}
+
+	private static CopyOnWriteArraySet<NodeEntry> getNodeEntrySet(String appName) throws Exception {
+		List<String> children = registryClient.getChildren(appName);
+		CopyOnWriteArraySet<NodeEntry> set = new CopyOnWriteArraySet<>();
+		if (children != null && !children.isEmpty()) {
+			for (String nodePath : children) {
+				set.add(new NodeEntry(nodePath));
 			}
 		}
-		LR.info("Unpublished Light services.");
+		return set;
 	}
 
-	public static void publishLightService(Collection<Object> objects) {
-		String publishRegistry = LightConf.getServiceRegistry();
-		for (Object object : objects) {
-			String interfaceName = getInterfaceName(object);
-			LOCAL_SERVICE.put(interfaceName, object);
-			String servicePath = resolveServicePath(interfaceName);
-			LightService lightService = PUBLISHED_SERVICES.get(servicePath);
-			if (lightService != null) {
-				lightService.data.get(0).getServiceNames().add(interfaceName);
-			} else {
-				ServiceEntry serviceEntry = new ServiceEntry(interfaceName);
-				lightService = new LightService(publishRegistry, getPublishPath(servicePath), serviceEntry);
-				PUBLISHED_SERVICES.put(servicePath, lightService);
+	private static CuratorCacheListener newListener() {
+		return new CuratorCacheListener() {
+			@Override
+			public void event(Type type, ChildData childData, ChildData childData1) {
+				Logger.info(type);
+				try {
+					Logger.info(childData);
+					if (childData != null && childData.getPath() != null) {
+						updateService(childData.getPath());
+					}
+				} catch (Exception e) {
+					Logger.error(e);
+				}
 			}
+		};
+	}
+
+	private static void updateService(String path) throws Exception {
+		String serverPath = path.substring(U.i16, path.lastIndexOf("/"));
+		Set<NodeEntry> csnSet = getNodeEntrySet(serverPath);
+		Set<NodeEntry> ssnSet = ssnMap.get(serverPath);
+		Set<NodeEntry> middleSet = new HashSet<NodeEntry>(ssnSet);
+		middleSet.removeAll(csnSet);
+		if (!middleSet.isEmpty()) {
+			ssnSet.removeAll(middleSet);
+			NettyChannel.close(middleSet);
 		}
-		if (!PUBLISHED_SERVICES.isEmpty()) {
-			doPublishLightService();
-		}
+		middleSet.clear();
+		middleSet.addAll(csnSet);
+		middleSet.removeAll(ssnSet);
+		ssnSet.addAll(middleSet);
+		middleSet.clear();
+		NodeSelector.refreshCache(serverPath);
 	}
 
-	public List<ServiceEntry> doSubscribeLightService() {
-		List<byte[]> dataList = ResourceSubscription.getSubscription(this).getChildrenData(this.path);
-		if (dataList != null && !dataList.isEmpty()) {
-			List<ServiceEntry> serviceEntryList = new ArrayList<>(dataList.size());
-			for (byte[] data : dataList) {
-				serviceEntryList.add(ServiceEntry.decode(data));
-			}
-			this.setSubscribedData(serviceEntryList);
-		}
-		return this.getSubscribedData();
-	}
-
-	public static List<ServiceEntry> subscribeLightService(String serviceName) {
-		String appName = resolveServicePath(serviceName);
-		LightService lightService = SUBSCRIBED_SERVICES.get(appName);
-		if (lightService != null) {
-			return lightService.getSubscribedData();
-		}
-		String registry = LightConf.getServiceRegistry(appName);
-		lightService = new LightService(registry, getSubscriptionPath(appName));
-		SUBSCRIBED_SERVICES.put(appName, lightService);
-		return lightService.doSubscribeLightService();
-	}
-
-	private static String getPublishPath(String path) {
-		return new StringBuilder(LIGHT_SERVICE_SLASH_URL).append(path).append(LightConstants.SLASH)
-				.append(LightApp.getLocalIp()).append(LightConstants.COLON)
-				.append(LightConf.getAppPort(path)).toString();
-	}
-
-	private static String getSubscriptionPath(String path) {
-		return new StringBuilder(LIGHT_SERVICE_SLASH_URL).append(path).toString();
-	}
-
-	public static String getInterfaceName(Object serviceImpl) {
+	public static Class<?> getInterfaceName(Object serviceImpl) {
 		Class<?>[] classes = serviceImpl.getClass().getInterfaces();
 		if (classes == null || classes.length == 0) {
-			LR.error("The service Class [{}] must implements an interface.", serviceImpl.getClass().getName());
-			throw new LightException("As a service Class must implements an interface.");
+			Logger.error("The service Class {} must implements an interface.", serviceImpl.getClass().getName());
+			throw new E("As a service Class must implements an interface.");
 		}
 		String sampleName = serviceImpl.getClass().getSimpleName();
 		for (Class<?> clazz : classes) {
 			if (sampleName.indexOf(clazz.getSimpleName()) == 0) {
-				return clazz.getName();
+				return clazz;
 			}
 		}
-		LR.error("The simple name of the Class [{}] must be prefixed with its interface simple name.",
+		Logger.error("Class {} name must be prefixed with its interface simple name.",
 				serviceImpl.getClass().getName());
-		throw new LightException(
-				"The simple name of an implementation class must be prefixed with its interface simple name.");
+		throw new E("Class name must be prefixed with its interface simple name.");
 	}
 
-	public static boolean isLocalService(Object service) {
-		return LOCAL_SERVICE.containsValue(service);
+	private static void buildMethodCache(Class<?> clazz, Object object) {
+		Method[] interfaceMethods = clazz.getDeclaredMethods();
+		LightRemoteMethod annotation = null;
+		try {
+			for (Method method : interfaceMethods) {
+				annotation = method.getAnnotation(LightRemoteMethod.class);
+				if (annotation != null) {
+					Method m = object.getClass().getMethod(method.getName(), method.getParameterTypes());
+					serviceMethodTable.put(clazz.getName(), annotation.methodId(), m);
+				}
+			}
+		} catch (NoSuchMethodException e) {
+			throw new E(e.getMessage());
+		} catch (SecurityException e) {
+			throw new E(e.getMessage());
+		}
 	}
 
-	public byte[] getPublishedData() {
-		return ServiceEntry.encode(this.data.get(0));
+	public static Method getMethod(String serviceName, Byte methodId) {
+		return serviceMethodTable.get(serviceName, methodId);
 	}
 
-	public List<ServiceEntry> getSubscribedData() {
-		return this.data;
-	}
-
-	public void setSubscribedData(List<ServiceEntry> data) {
-		this.data = data;
-	}
-
-	@Override
-	public String getPath() {
-		return path;
-	}
-
-	@Override
-	public String getRegistry() {
-		return this.registry;
-	}
-
-	@Override
-	public void subscribe() {
-		doSubscribeLightService();
-	}
-
-	@Override
-	public void publish() {
-		LightService.doPublishLightService();
+	public static void main(String args[]) {
+		String a = LIGHT_SERVICE_PATH + "prod/192.168.1.2:8080:1:2";
+		System.out.println(a.substring(U.i16, a.lastIndexOf("/")));
 	}
 
 }

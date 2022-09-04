@@ -4,24 +4,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.tinylog.Logger;
 
-import com.haiyiyang.light.constant.LightConstants;
-import com.haiyiyang.light.exception.LightException;
-import com.haiyiyang.light.resource.subscription.ResourceSubscriber;
-import com.haiyiyang.light.resource.subscription.ResourceSubscription;
-import com.haiyiyang.light.utils.LightUtil;
+import com.haiyiyang.light.__.E;
+import com.haiyiyang.light.__.U;
+import com.haiyiyang.light.conf.subscribe.ConfSubscriber;
+import com.haiyiyang.light.conf.subscribe.ConfSubscription;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-public class SharedConf implements ResourceSubscriber {
-
-	private static final Logger LR = LoggerFactory.getLogger(SharedConf.class);
+public class SharedConf implements ConfSubscriber {
 
 	public static final String SHARED_PATH = "/light/shared/";
-	public static final String SHARED_LOCAL_PATH = LightUtil.getLocalPath(SHARED_PATH);
-	private static Map<String, SharedConf> SHARED_CONF_MAP = new ConcurrentHashMap<>();
+	public static final String SHARED_LOCAL_PATH = U.getLocalPath(SHARED_PATH);
+	private static final Map<String, SharedConf> sharedConfMap = new ConcurrentHashMap<String, SharedConf>();
 
 	private String path;
 	private Config config;
@@ -31,7 +27,7 @@ public class SharedConf implements ResourceSubscriber {
 	}
 
 	private void initialize() {
-		if (LightUtil.useLocalConf()) {
+		if (U.useLocalConf()) {
 			config = ConfigFactory.load(path);
 		} else {
 			doSubscribeSharedConf();
@@ -39,32 +35,37 @@ public class SharedConf implements ResourceSubscriber {
 	}
 
 	public static void subscribeShared(List<String> sharedList) {
+		sharedConfMap.clear();
 		if (sharedList != null && !sharedList.isEmpty()) {
 			StringBuilder fullPath = new StringBuilder(64);
-			int length = fullPath.length();
-			fullPath.append(LightUtil.useLocalConf() ? SHARED_LOCAL_PATH : SHARED_PATH);
+			fullPath.append(U.useLocalConf() ? SHARED_LOCAL_PATH : SHARED_PATH);
+			int len = fullPath.length();
 			for (String shared : sharedList) {
-				SharedConf sharedConf = new SharedConf(
-						fullPath.delete(length, fullPath.length()).append(shared).toString());
-				if (!SHARED_CONF_MAP.containsKey(shared)) {
-					SHARED_CONF_MAP.put(sharedConf.path, sharedConf);
+				if (!sharedConfMap.containsKey(shared)) {
+					SharedConf sharedConf = new SharedConf(
+							fullPath.delete(len, fullPath.length()).append(shared).toString());
+					sharedConfMap.put(sharedConf.path, sharedConf);
+					sharedConf.initialize();
 				}
-				sharedConf.initialize();
 			}
 		}
 	}
 
 	private void doSubscribeSharedConf() {
-		byte[] data = ResourceSubscription.getSubscription(this).getData(this.path);
-		if (data == null || data.length == 0) {
-			LR.error("The file [{}] does not exists, or is empty.", this.path);
-			throw new LightException(LightException.FILE_NOT_FOUND_OR_EMPTY);
+		byte[] data = null;
+		try {
+			data = ConfSubscription.getSubscription(this).getData(this.path);
+		} catch (Exception e) {
+			Logger.error(e);
 		}
-		config = ConfigFactory.parseString(new String(data, LightConstants.CHARSET_UTF8));
+		if (data == null || data.length == 0) {
+			throw new E(U.ZK_NO_DATA + this.path);
+		}
+		config = ConfigFactory.parseString(new String(data, U.utf8Charset));
 	}
 
 	public Config getValue(String shared) {
-		SharedConf sharedConf = SHARED_CONF_MAP.get(shared);
+		SharedConf sharedConf = sharedConfMap.get(shared);
 		if (sharedConf != null) {
 			return sharedConf.config;
 		}
@@ -73,7 +74,7 @@ public class SharedConf implements ResourceSubscriber {
 
 	@Override
 	public String getRegistry() {
-		return LightConf.CONF_SERVER;
+		return LightConf.lightConfServer;
 	}
 
 	@Override
@@ -84,6 +85,11 @@ public class SharedConf implements ResourceSubscriber {
 	@Override
 	public void subscribe() {
 		doSubscribeSharedConf();
-		LR.info("Reloaded file [{}].", getPath());
+		Logger.info("Reloaded file {}.", getPath());
 	}
+
+	public Config getConfig() {
+		return config;
+	}
+
 }

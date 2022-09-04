@@ -1,105 +1,124 @@
 package com.haiyiyang.light.app;
 
-import java.util.List;
-import java.util.Set;
-
+import com.haiyiyang.light.__.U;
 import com.haiyiyang.light.conf.AppConf;
 import com.haiyiyang.light.conf.LightConf;
+import com.haiyiyang.light.conf.attr.NettyConf;
+import com.haiyiyang.light.conf.attr.ThreadPool;
 import com.haiyiyang.light.context.LightContext;
-import com.haiyiyang.light.exception.LightException;
+import com.haiyiyang.light.invocation.server.LightServer;
 import com.haiyiyang.light.service.LightService;
-import com.haiyiyang.light.utils.NetworkUtils;
 
-public class LightApp {
+public final class LightApp {
+	private static String appName;
+	private static String localIp;
+	private static int localPort;
+	private static String localIpPort;
+	private static String serviceNode;
 
-	private AppConf appConf;
+	private static byte group01;
+	private static long longIpPort;
 
-	private LightConf lightConf;
+	private static AppConf appConf;
+	private static LightConf lightConf;
 
-	private LightContext lightContext;
+	public synchronized static void buidLightApp(LightAppParam p) {
+		if (appName == null) {
+			initializeConf(p);
+			initializeApp(p);
+			provideRemoteService(p);
+		}
+	}
 
-	private static String APP_NAME;
+	private static void initializeConf(LightAppParam p) {
+		lightConf = LightConf.singleton();
+		appConf = AppConf.singleton(appName = LightService.resolveServicePath(p.getCallerName()));
+	}
 
-	private static String LOCAL_IP;
+	private static void initializeApp(LightAppParam p) {
+		localIp = U.getLocalIp(lightConf.getIpSegments());
+		localPort = appConf.getAppPort();
+		localIpPort = U.bs(23, localIp, U.COLON, localPort);
+		longIpPort = U.longIpPort(localIp, localPort);
+		group01 = Byte.parseByte(localIp.substring(localIp.length() - 1, localIp.length()));
+		serviceNode = U.bs(27, localIpPort, U.COLON, group01, U.COLON, appConf.getNodeWeight(localIp));
+	}
 
-	private static byte GROUP_0_1;
-
-	private static volatile LightApp LIGHT_APP;
-
-	private LightApp(LightAppParam p) {
-		APP_NAME = p.getAppName();
-		this.lightConf = LightConf.singleton();
-		this.setMachineIPAndGroup01();
-		this.lightContext = LightContext.buildContext(p);
-		if (!lightContext.getObjectValues().isEmpty()) {
-			if (APP_NAME == null) {
-				APP_NAME = LightService.resolveServicePath(lightContext.getObjectValues().iterator().next());
+	private static void provideRemoteService(LightAppParam p) {
+		if (p.isServiceProvider()) {
+			if (!appConf.isDisablePublish(localIp)) {
+				LightService.publishLightService(serviceNode, LightContext.buildContext(p).getObjectValues());
 			}
-			LightService.publishLightService(lightContext.getObjectValues());
+			LightServer.singleton().start();
 		}
-		this.appConf = AppConf.singleton(APP_NAME);
 	}
 
-	public static LightApp buidLightApp(LightAppParam p) {
-		if (LIGHT_APP != null) {
-			return LIGHT_APP;
+	public static NettyConf getServerNettyConf() {
+		if (appConf.getServerNettyConf() != null) {
+			return appConf.getServerNettyConf();
+		} else if (lightConf.getServerNettyConf() != null) {
+			return lightConf.getServerNettyConf();
 		}
-		synchronized (AppConf.class) {
-			if (LIGHT_APP == null) {
-				LIGHT_APP = new LightApp(p);
-			}
-		}
-		return LIGHT_APP;
+		return NettyConf.defaultNettyConf;
 	}
 
-	private void setMachineIPAndGroup01() {
-		Set<String> ips = NetworkUtils.getLocalIps();
-		List<String> ipSegments = LightConf.getIpSegments();
-		for (String ip : ips) {
-			if (ipSegments == null || ipSegments.isEmpty()) {
-				LOCAL_IP = ip;
-				break;
-			}
-			for (String ipSegment : ipSegments) {
-				if (ip.startsWith(ipSegment)) {
-					LOCAL_IP = ip;
-					break;
-				}
-			}
+	public static NettyConf getClientNettyConf() {
+		if (appConf.getClientNettyConf() != null) {
+			return appConf.getClientNettyConf();
+		} else if (lightConf.getClientNettyConf() != null) {
+			return lightConf.getClientNettyConf();
 		}
+		return NettyConf.defaultNettyConf;
+	}
 
-		if (ipSegments != null && !ipSegments.isEmpty() && LOCAL_IP == null) {
-			throw new LightException(LightException.Code.PERMISSION_ERROR, LightException.NO_NETWORK_PERMISSION);
+	public static ThreadPool getClientThreadPool() {
+		if (appConf.getClientThreadPool() != null) {
+			return appConf.getClientThreadPool();
+		} else if (lightConf.getClientThreadPool() != null) {
+			return lightConf.getClientThreadPool();
 		}
-		GROUP_0_1 = Byte.parseByte(LOCAL_IP.substring(LOCAL_IP.length() - 1, LOCAL_IP.length()));
+		return ThreadPool.defaultThreadPool;
 	}
 
-	public AppConf getAppConf() {
-		return appConf;
-	}
-
-	public LightConf getLightConf() {
-		return lightConf;
-	}
-
-	public LightContext getLightContext() {
-		return lightContext;
+	public static ThreadPool getServerThreadPool() {
+		if (appConf.getServerThreadPool() != null) {
+			return appConf.getServerThreadPool();
+		} else if (lightConf.getServerThreadPool() != null) {
+			return lightConf.getServerThreadPool();
+		}
+		return ThreadPool.defaultThreadPool;
 	}
 
 	public static String getAppName() {
-		return APP_NAME;
+		return appName;
 	}
 
-	public static byte getGroup01() {
-		return GROUP_0_1;
+	public static AppConf getAppConf() {
+		return appConf;
+	}
+
+	public static LightConf getLightConf() {
+		return lightConf;
 	}
 
 	public static String getLocalIp() {
-		return LOCAL_IP;
+		return localIp;
 	}
 
-	public static int getPort() {
-		return 0;
+	public static int getLocalPort() {
+		return localPort;
+	}
+
+	public static byte getGroup01() {
+		return group01;
+	}
+
+	public static long getLongIpPort() {
+		return longIpPort;
+	}
+
+	public static String getServiceNode() {
+		return serviceNode;
 	}
 
 }

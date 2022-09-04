@@ -12,6 +12,15 @@ public class UserDto {
 
 	}
 
+	public UserDto(Integer userId, String firstName, String lastName, Boolean gender, Byte age) {
+		super();
+		this.userId = userId;
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.gender = gender;
+		this.age = age;
+	}
+
 	public UserDto(Integer userId) {
 		this.userId = userId;
 	}
@@ -54,6 +63,12 @@ public class UserDto {
 
 	public void setAge(Byte age) {
 		this.age = age;
+	}
+
+	@Override
+	public String toString() {
+		return "UserDto [userId=" + userId + ", firstName=" + firstName + ", lastName=" + lastName + ", gender="
+				+ gender + ", age=" + age + "]";
 	}
 
 }

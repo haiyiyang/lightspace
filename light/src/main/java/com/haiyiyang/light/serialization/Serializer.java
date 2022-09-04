@@ -1,11 +1,15 @@
 package com.haiyiyang.light.serialization;
 
-import java.nio.ByteBuffer;
+import com.haiyiyang.light.__.U;
 
 public interface Serializer {
 
-	public ByteBuffer serialize(Object obj, Object type);
+	public final static byte JSON = U.bJ;
 
-	public Object deserialize(ByteBuffer buffer, Object type);
+	public final static byte PROTOSTUFF = U.bP;
+
+	public <T> byte[] serialize(T obj);
+
+	public <T> T deserialize(byte[] data, Class<T> clazz);
 
 }

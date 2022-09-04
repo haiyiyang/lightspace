@@ -2,28 +2,41 @@ package com.haiyiyang.light.conf.root;
 
 import java.util.List;
 
+import com.haiyiyang.light.__.U;
 import com.haiyiyang.light.conf.attr.AppNode;
+import com.haiyiyang.light.conf.attr.NettyConf;
+import com.haiyiyang.light.conf.attr.ThreadPool;
+import com.typesafe.config.Optional;
 
 public class AppConfRoot {
-	private int port;
-	private int timeout;
+
+	@Optional
+	private Integer port = U.I6531;
+
+	@Optional
 	private List<AppNode> appNodes;
+
+	@Optional
 	private List<String> sharedConf;
 
-	public int getPort() {
+	@Optional
+	private ThreadPool serverThreadPool;
+
+	@Optional
+	private ThreadPool clientThreadPool;
+
+	@Optional
+	private NettyConf serverNettyConf;
+
+	@Optional
+	private NettyConf clientNettyConf;
+
+	public Integer getPort() {
 		return port;
 	}
 
-	public void setPort(int port) {
+	public void setPort(Integer port) {
 		this.port = port;
-	}
-
-	public int getTimeout() {
-		return timeout;
-	}
-
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
 	}
 
 	public List<AppNode> getAppNodes() {
@@ -40,6 +53,38 @@ public class AppConfRoot {
 
 	public void setSharedConf(List<String> sharedConf) {
 		this.sharedConf = sharedConf;
+	}
+
+	public ThreadPool getServerThreadPool() {
+		return serverThreadPool;
+	}
+
+	public void setServerThreadPool(ThreadPool serverThreadPool) {
+		this.serverThreadPool = serverThreadPool;
+	}
+
+	public ThreadPool getClientThreadPool() {
+		return clientThreadPool;
+	}
+
+	public void setClientThreadPool(ThreadPool clientThreadPool) {
+		this.clientThreadPool = clientThreadPool;
+	}
+
+	public NettyConf getServerNettyConf() {
+		return serverNettyConf;
+	}
+
+	public void setServerNettyConf(NettyConf serverNettyConf) {
+		this.serverNettyConf = serverNettyConf;
+	}
+
+	public NettyConf getClientNettyConf() {
+		return clientNettyConf;
+	}
+
+	public void setClientNettyConf(NettyConf clientNettyConf) {
+		this.clientNettyConf = clientNettyConf;
 	}
 
 }

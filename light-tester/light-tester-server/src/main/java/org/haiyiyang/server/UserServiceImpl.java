@@ -3,17 +3,13 @@ package org.haiyiyang.server;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.haiyiyang.server.UserService;
+import org.haiyiyang.server.dto.Person;
 import org.haiyiyang.server.dto.UserDto;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.haiyiyang.light.service.annotation.IAmALightService;
+import com.haiyiyang.light.service.annotation.LightRemoteService;
 
-@IAmALightService
+@LightRemoteService
 public class UserServiceImpl implements UserService {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
 
 	public String hello(String name) {
 		return "hello " + name;
@@ -35,15 +31,25 @@ public class UserServiceImpl implements UserService {
 	}
 
 	public void saveUser(UserDto userDto) {
-		LOGGER.info("Saving userDto: " + userDto);
+//		Logger.info(userDto.getLastName());
 	}
 
 	public List<UserDto> findUserListByGender(boolean gender) {
 		List<UserDto> list = new ArrayList<UserDto>();
 		for (int i = 0; i < 3; i++) {
-			list.add(new UserDto());
+			list.add(new UserDto(i, "dehua", "liu", false, (byte) 2));
 		}
 		return list;
+	}
+
+	@Override
+	public void ping() {
+
+	}
+
+	@Override
+	public String hello(Person person) {
+		return "Hello " + person.getFirstName() + " " + person.getLastName();
 	}
 
 }

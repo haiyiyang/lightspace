@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.haiyiyang</groupId>
 	<artifactId>light</artifactId>
-	<version>0.0.6.8</version>
+	<version>0.0.7.2</version>
 	<packaging>jar</packaging>
 
 	<name>light</name>
@@ -19,6 +19,7 @@
 			<organizationUrl>http://www.haiyiyang.com</organizationUrl>
 		</developer>
 	</developers>
+
 	<licenses>
 		<license>
 			<name>MIT License</name>
@@ -45,58 +46,67 @@
 		<dependency>
 			<groupId>com.typesafe</groupId>
 			<artifactId>config</artifactId>
-			<version>1.4.1</version>
+			<version>1.4.2</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-api</artifactId>
-			<version>2.17.0</version>
+			<groupId>org.tinylog</groupId>
+			<artifactId>tinylog-api</artifactId>
+			<version>2.4.1</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-core</artifactId>
-			<version>2.17.0</version>
+			<groupId>org.tinylog</groupId>
+			<artifactId>tinylog-impl</artifactId>
+			<version>2.4.1</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-			<version>3.7.0</version>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-framework</artifactId>
+			<version>5.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-recipes</artifactId>
+			<version>5.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.1.72.Final</version>
+			<version>4.1.77.Final</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-context</artifactId>
-			<version>5.3.14</version>
+			<version>5.3.15</version>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>2.13.0</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.13.0</version>
-		</dependency>
-		<dependency>
-			<groupId>com.github.ben-manes.caffeine</groupId>
+			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>3.0.5</version>
+			<version>31.0.1-jre</version>
 		</dependency>
 		<dependency>
 			<groupId>io.protostuff</groupId>
 			<artifactId>protostuff-core</artifactId>
-			<version>1.7.4</version>
-			<scope>test</scope>
+			<version>1.8.0</version>
 		</dependency>
 		<dependency>
 			<groupId>io.protostuff</groupId>
 			<artifactId>protostuff-runtime</artifactId>
-			<version>1.7.4</version>
+			<version>1.8.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.bytebuddy</groupId>
+			<artifactId>byte-buddy</artifactId>
+			<version>1.12.8</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>3.0.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>1.7.25</version>
 		</dependency>
 	</dependencies>
 	<build>
@@ -105,7 +115,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.0.0</version>
+					<version>3.3.2</version>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -118,7 +128,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-source-plugin</artifactId>
-					<version>3.0.1</version>
+					<version>3.2.1</version>
 					<executions>
 						<execution>
 							<id>attach-sources</id>
@@ -131,7 +141,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.7.0</version>
+					<version>3.9.0</version>
 					<configuration>
 						<source>1.8</source>
 						<target>1.8</target>
@@ -140,7 +150,7 @@
 				<plugin>
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
-					<version>1.6.7</version>
+					<version>1.6.8</version>
 					<extensions>true</extensions>
 					<configuration>
 						<serverId>sonatype-nexus-staging</serverId>
