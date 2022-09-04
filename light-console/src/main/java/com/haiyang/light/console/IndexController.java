@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.haiyiyang.light.service.proxy.LightServiceFactory;
+import com.haiyiyang.light.service.LightServiceProxy;
 
 @RestController
 public class IndexController {
@@ -18,7 +18,7 @@ public class IndexController {
 		ModelAndView view = new ModelAndView("/WEB-INF/views/index.html");
 		view.addObject("total", 1005);
 		view.addObject("test", 100);
-		UserService userService = LightServiceFactory.getService(UserService.class);
+		UserService userService = LightServiceProxy.getService(UserService.class);
 		String helloResult = userService.hello("Agent");
 		System.out.println("helloResult===============:" + helloResult);
 		view.addObject("helloResult", helloResult);
