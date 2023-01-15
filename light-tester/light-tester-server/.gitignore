@@ -1,0 +1,8 @@
+.git
+.DS_Store
+.project
+.classpath
+.factorypath
+.settings/
+.metadata/
+target/
