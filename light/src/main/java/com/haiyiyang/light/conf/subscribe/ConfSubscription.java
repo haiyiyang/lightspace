@@ -17,9 +17,9 @@ public class ConfSubscription {
 
 	private ConfSubscription(ConfSubscriber subscriber) {
 		this.lightSubscriber = subscriber;
-		registryClient = new RegistryClient(subscriber.getRegistry());
+		registryClient = new RegistryClient(subscriber.registry());
 		try {
-			registryClient.watchPathChildrenNode(subscriber.getPath(), new CuratorCacheListener() {
+			registryClient.watchPathChildrenNode(subscriber.path(), new CuratorCacheListener() {
 				@Override
 				public void event(Type type, ChildData childData, ChildData childData1) {
 					Logger.info(type);

@@ -21,6 +21,7 @@ public final class LightApp {
 
 	private static AppConf appConf;
 	private static LightConf lightConf;
+	private static boolean enableLocalConf = false;
 
 	public synchronized static void buidLightApp(LightAppParam p) {
 		if (appName == null) {
@@ -31,6 +32,7 @@ public final class LightApp {
 	}
 
 	private static void initializeConf(LightAppParam p) {
+		enableLocalConf = U.S1.equals(System.getProperty("enableLocalConf"));
 		lightConf = LightConf.singleton();
 		appConf = AppConf.singleton(appName = LightService.resolveServicePath(p.getCallerName()));
 	}
@@ -119,6 +121,10 @@ public final class LightApp {
 
 	public static String getServiceNode() {
 		return serviceNode;
+	}
+
+	public static boolean isEnableLocalConf() {
+		return enableLocalConf;
 	}
 
 }

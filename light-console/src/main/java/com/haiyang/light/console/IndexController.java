@@ -13,7 +13,7 @@ import com.haiyiyang.light.service.LightServiceProxy;
 @RestController
 public class IndexController {
 
-	@RequestMapping(value = "/", method = RequestMethod.GET)
+	@RequestMapping(value = "/test", method = RequestMethod.GET)
 	public ModelAndView index(HttpServletRequest req) {
 		ModelAndView view = new ModelAndView("/WEB-INF/views/index.html");
 		view.addObject("total", 1005);

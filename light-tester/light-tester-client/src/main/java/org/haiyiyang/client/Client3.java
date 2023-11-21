@@ -9,7 +9,7 @@ import com.haiyiyang.light.service.LightServiceProxy;
 public class Client3 {
 
 	static {
-		System.setProperty("useLocalConf", "1");
+		System.setProperty("enableLocalConf", "1");
 	}
 	private static final UserService userService = LightServiceProxy.getService(UserService.class);
 

@@ -10,7 +10,7 @@ public class Client {
 
 	public static void main(String[] args) {
 
-		System.setProperty("useLocalConf", "1");
+		System.setProperty("enableLocalConf", "1");
 		UserService userService = LightServiceProxy.getService(UserService.class);
 		String helloResult = userService.hello("Agent");
 		Logger.info("helloResult >>> " + helloResult);

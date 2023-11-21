@@ -59,7 +59,6 @@ public final class U {
 	public static final String light = "light";
 	public static final String dotConf = ".conf";
 	public static final String backslashDot = "\\.";
-	public static final String useLocalConf = "useLocalConf";
 	public static final String userHome = System.getProperty("user.home");
 
 	public static final String ZK_NO_DATA = "ZK No Data, Path: ";
@@ -67,10 +66,6 @@ public final class U {
 
 	public static final Charset utf8Charset = Charset.forName("UTF-8");
 	public static final String[] specialIpPrefixs = { "127.", "255.", "169.254." };
-
-	public static boolean useLocalConf() {
-		return S1.equals(System.getProperty(useLocalConf));
-	}
 
 	public static String getLocalPath(String path) {
 		return userHome + path.replace(cSLASH, cFS);

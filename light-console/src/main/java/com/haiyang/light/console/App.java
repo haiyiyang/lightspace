@@ -9,8 +9,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 
 import com.haiyang.light.console.basic.Configration;
-import com.haiyiyang.light.app.LightApp;
-import com.haiyiyang.light.app.LightAppParam;
 
 @ServletComponentScan()
 @SpringBootApplication()

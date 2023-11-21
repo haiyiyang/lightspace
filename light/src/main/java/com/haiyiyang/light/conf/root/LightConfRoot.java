@@ -14,7 +14,7 @@ public class LightConfRoot {
 	private String domainPackages;
 
 	@Optional
-	private String registry = U.S12700012181;
+	private String registry;
 
 	@Optional
 	private int timeout = U.i7;

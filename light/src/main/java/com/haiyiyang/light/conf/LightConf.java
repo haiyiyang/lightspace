@@ -11,6 +11,7 @@ import org.tinylog.Logger;
 import com.google.common.collect.Lists;
 import com.haiyiyang.light.__.E;
 import com.haiyiyang.light.__.U;
+import com.haiyiyang.light.app.LightApp;
 import com.haiyiyang.light.conf.attr.AppAddress;
 import com.haiyiyang.light.conf.attr.NettyConf;
 import com.haiyiyang.light.conf.attr.ThreadPool;
@@ -24,7 +25,7 @@ public class LightConf implements ConfSubscriber {
 
 	private static volatile LightConf LIGHT_CONF;
 
-	static final String lightConfServer = "lightConfServer:2181";
+	static final String lightConfServer = "conf.light:2181";
 
 	private static final String LIGHT_CONF_URL = "/light/light.conf";
 	private static final String LIGHT_CONF_LOCAL_URL = U.getLocalPath(LIGHT_CONF_URL);
@@ -64,7 +65,7 @@ public class LightConf implements ConfSubscriber {
 	}
 
 	private void initialize() {
-		if (U.useLocalConf()) {
+		if (LightApp.isEnableLocalConf()) {
 			setLightConfRoot(ConfigBeanFactory.create(ConfigFactory.parseFile(new File(LIGHT_CONF_LOCAL_URL)),
 					LightConfRoot.class));
 		} else {
@@ -106,19 +107,19 @@ public class LightConf implements ConfSubscriber {
 	}
 
 	@Override
-	public String getRegistry() {
+	public String registry() {
 		return lightConfServer;
 	}
 
 	@Override
-	public String getPath() {
+	public String path() {
 		return LIGHT_CONF_URL;
 	}
 
 	@Override
 	public void subscribe() {
 		doSubscribeLightConf();
-		Logger.info("Reloaded file {}.", getPath());
+		Logger.info("Reloaded file {}.", path());
 	}
 
 	public List<String> getIpSegments() {
@@ -148,7 +149,7 @@ public class LightConf implements ConfSubscriber {
 		return lightConfRoot.getClientThreadPool();
 	}
 
-	public static String getAppRegistry() {
+	public static String getRegistry() {
 		return lightConfRoot.getRegistry();
 	}
 

@@ -45,7 +45,7 @@ public final class LightService {
 	private synchronized static void initRegistryClient() {
 		if (registryClient == null) {
 			serviceNode = LightApp.getServiceNode();
-			registryClient = new RegistryClient(LightConf.getAppRegistry());
+			registryClient = new RegistryClient(LightConf.getRegistry());
 		}
 	}
 
@@ -86,7 +86,7 @@ public final class LightService {
 	}
 
 	public static void publishLightService(String serviceNode, Collection<Object> objects) {
-		if (objects == null || objects.isEmpty()) {
+		if (objects == null || objects.isEmpty() || LightConf.getRegistry() == null) {
 			return;
 		}
 		if (registryClient == null) {

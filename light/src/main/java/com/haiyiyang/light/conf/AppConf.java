@@ -9,6 +9,7 @@ import org.tinylog.Logger;
 
 import com.haiyiyang.light.__.E;
 import com.haiyiyang.light.__.U;
+import com.haiyiyang.light.app.LightApp;
 import com.haiyiyang.light.conf.attr.AppNode;
 import com.haiyiyang.light.conf.attr.NettyConf;
 import com.haiyiyang.light.conf.attr.ThreadPool;
@@ -57,7 +58,7 @@ public class AppConf implements ConfSubscriber {
 		appConfPath = strb.append(APP_CONF_PATH).append(appName).append(U.dotConf).toString();
 		appConfLocalPath = strb.delete(0, strb.length()).append(APP_CONF_LOCAL_PATH).append(appName).append(U.dotConf)
 				.toString();
-		if (U.useLocalConf()) {
+		if (LightApp.isEnableLocalConf()) {
 			setAppConfRoot(
 					ConfigBeanFactory.create(ConfigFactory.parseFile(new File(appConfLocalPath)), AppConfRoot.class));
 		} else {
@@ -98,19 +99,19 @@ public class AppConf implements ConfSubscriber {
 	}
 
 	@Override
-	public String getRegistry() {
+	public String registry() {
 		return LightConf.lightConfServer;
 	}
 
 	@Override
-	public String getPath() {
+	public String path() {
 		return appConfPath;
 	}
 
 	@Override
 	public void subscribe() {
 		doSubscribeAppConf();
-		Logger.info("Reloaded file {}.", getPath());
+		Logger.info("Reloaded file {}.", path());
 	}
 
 	public Config getSharedConf() {

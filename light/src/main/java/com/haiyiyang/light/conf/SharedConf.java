@@ -8,6 +8,7 @@ import org.tinylog.Logger;
 
 import com.haiyiyang.light.__.E;
 import com.haiyiyang.light.__.U;
+import com.haiyiyang.light.app.LightApp;
 import com.haiyiyang.light.conf.subscribe.ConfSubscriber;
 import com.haiyiyang.light.conf.subscribe.ConfSubscription;
 import com.typesafe.config.Config;
@@ -27,7 +28,7 @@ public class SharedConf implements ConfSubscriber {
 	}
 
 	private void initialize() {
-		if (U.useLocalConf()) {
+		if (LightApp.isEnableLocalConf()) {
 			config = ConfigFactory.load(path);
 		} else {
 			doSubscribeSharedConf();
@@ -38,7 +39,7 @@ public class SharedConf implements ConfSubscriber {
 		sharedConfMap.clear();
 		if (sharedList != null && !sharedList.isEmpty()) {
 			StringBuilder fullPath = new StringBuilder(64);
-			fullPath.append(U.useLocalConf() ? SHARED_LOCAL_PATH : SHARED_PATH);
+			fullPath.append(LightApp.isEnableLocalConf() ? SHARED_LOCAL_PATH : SHARED_PATH);
 			int len = fullPath.length();
 			for (String shared : sharedList) {
 				if (!sharedConfMap.containsKey(shared)) {
@@ -73,19 +74,19 @@ public class SharedConf implements ConfSubscriber {
 	}
 
 	@Override
-	public String getRegistry() {
+	public String registry() {
 		return LightConf.lightConfServer;
 	}
 
 	@Override
-	public String getPath() {
+	public String path() {
 		return path;
 	}
 
 	@Override
 	public void subscribe() {
 		doSubscribeSharedConf();
-		Logger.info("Reloaded file {}.", getPath());
+		Logger.info("Reloaded file {}.", path());
 	}
 
 	public Config getConfig() {

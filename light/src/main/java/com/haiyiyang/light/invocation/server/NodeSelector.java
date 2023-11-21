@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Preconditions;
-import com.haiyiyang.light.__.U;
 import com.haiyiyang.light.app.LightApp;
 import com.haiyiyang.light.conf.LightConf;
 import com.haiyiyang.light.invocation.IpPort;
@@ -25,8 +24,11 @@ public class NodeSelector {
 			.build(key -> getNodeEntryList(key));
 
 	public static NodeEntry getNodeEntry(ServiceKey serviceKey) {
-		if (!U.useLocalConf()) {
-			return getNodeInLightConf(serviceKey.getServiceName());
+		if (LightApp.isEnableLocalConf()) {
+			NodeEntry nodeEntry = getNodeInLightConf(serviceKey.getServiceName());
+			if (nodeEntry != null) {
+				return nodeEntry;
+			}
 		}
 		List<NodeEntry> cacheList = cache.get(serviceKey);
 		return getNextNodeEntry(serviceKey.getServiceName(), cacheList);
@@ -34,8 +36,7 @@ public class NodeSelector {
 
 	private static NodeEntry getNodeInLightConf(String serviceName) {
 		String address = LightConf.getAppAddress(LightService.resolveServicePath(serviceName));
-		Preconditions.checkNotNull(address, "No NodeEntry in light.conf.");
-		return new NodeEntry(new IpPort(address));
+		return address == null ? null : new NodeEntry(new IpPort(address));
 	}
 
 	private static List<NodeEntry> getNodeEntryList(ServiceKey serviceKey) {
